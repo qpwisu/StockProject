@@ -1,9 +1,13 @@
-
+import threading
 from datetime import datetime, timedelta
 from concurrent import futures
 from pykrx import stock
 import pandas as pd
 import time
+
+from tqdm import tqdm
+
+
 class GetStockPrice():
     #이거는 액면 분할되기 전값이 그대로 들어가있어서 데이터 사용하기 힘듬 stock.get_market_ohlcv 사용해야함
     #start_day ~ end_day까지의 날짜 가격 구함
@@ -63,9 +67,10 @@ class GetStockPrice():
 
     #위에는 액면 분할되기 전값이 그대로 들어가있어서 데이터 사용하기 힘듬 stock.get_market_ohlcv 사용해야함
     def multiThread_get_stock_price(self,start_day, end_day):
+        lock = threading.Lock()
+
         print("start get_stock_price")
         start = time.time()  # 시작 시간 저장
-
         global df
         df = pd.DataFrame(columns=['티커', '시가', '고가', '저가', '종가', '거래량', '날짜', '회사명'])
         tickers = stock.get_market_ticker_list(end_day, market="ALL")
@@ -83,37 +88,39 @@ class GetStockPrice():
 
         # 날짜 리스트를 받아서 각각의 쓰레드가 전역 df에 결과값들을 저장
         def get_stock(tickers):
-            for ticker in tickers:
+            tmp = pd.DataFrame(columns=['티커', '시가', '고가', '저가', '종가', '거래량', '날짜', '회사명'])
+
+            for ticker in tqdm(tickers):
                 ddf = stock.get_market_ohlcv_by_date(start_day, end_day, ticker, adjusted=True).reset_index()
                 ddf["티커"] = ticker
                 ddf["날짜"] = ddf["날짜"].dt.strftime("%Y%m%d")
-                global df
-                df=pd.concat([df,ddf])
+                name = stock.get_market_ticker_name(ticker)
+                ddf["회사명"] = name
+                tmp = pd.concat([tmp, ddf])
+            global df
+            # df라는 전역변수에 쓰레드들이 동시 접근하여 누락되는 값이 생김 공유 자원에 lock을 걸어서 한번에 한쓰레드만 사용가능하게 끔함
+            # lock = threading.Lock()
+            lock.acquire()
+            df=pd.concat([df,tmp])
+            lock.release()
+
 
         #멀티 쓰레드 처리
         #날짜를 나눠서 쓰레드별로 처리
         def list_chunk(lst, n):
             return [lst[i:i + len(lst)//n] for i in range(0, len(lst), len(lst)//n)]
        #사용할 쓰레드 갯수 지정
-        num_thread = 10
-        if len(days)<10:
-            num_thread = len(days)
+        num_thread = 8
+        # if len(days)<10:
+        #     num_thread = len(days)
 
         with futures.ThreadPoolExecutor() as executor:
+            print(tickers)
             sub_routine = list_chunk(tickers,num_thread)
             results = executor.map(get_stock, sub_routine)
         #티커를 이용해서 회사명 열 추가 멀티 쓰레드 사용
-        def ticker_change_name(tickers):
-            for ticker in tickers:
-                name = stock.get_market_ticker_name(ticker)
-                global df
-                df.loc[df["티커"] == ticker, "회사명"] = name
 
-        tickerList = df.groupby("티커").size().index
 
-        with futures.ThreadPoolExecutor() as executor:
-            sub_routine = list_chunk(tickerList,num_thread)
-            results = executor.map(ticker_change_name, sub_routine)
         print("멀티쓰레드 getstockprice time :", time.time() - start)  # 현재시각 - 시작시간 =드실행 시간
         self.save_price_csv(df)
         return df

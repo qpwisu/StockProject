@@ -2,9 +2,9 @@ from get_stock_price import *
 import pandas as pd
 import pykrx
 test = GetStockPrice()
-ddf = stock.get_market_ohlcv_by_date("20180401", "20220630", "377300", adjusted=True)
+ddf2 = pd.read_csv("csvFile/stockPrice.csv")
+print(ddf2.groupby("티커").count())
 
-print(ddf)
-
-# df = pd.read_csv("csvFile/stockPrice.csv")
+tickers = stock.get_market_ticker_list("20220501", market="ALL")
+print(len(tickers))
 # print(df.duplicated(keep='first').sum())
