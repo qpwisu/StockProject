@@ -130,7 +130,7 @@ class GetStockPrice():
         #액면분할시 일정 기간동안 시가,고가,종가가 0으로 나온다 이를 종가로 통일
         print("멀티쓰레드 getstockprice time :", time.time() - start)  # 현재시각 - 시작시간 =드실행 시간
         self.save_price_csv(df)
-        # return df
+        return df
     #기존에 구한 날짜 +1 ~ 오늘 -1 날짜 사이에 가격을 구함
     def update_stock_price(self):
         pre_df = pd.read_csv("csvFile/stockPrice.csv")
