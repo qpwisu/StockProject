@@ -11,6 +11,7 @@ class UploadMysql():
     #     df.to_sql(name='price', con=self.engine, if_exists='append', index=False)
 
     def first_mysql_upload_stock_price(self,df):
+
         df.columns = ["ticker", "open", "high", "low", "end", "mount", "day", "name"]
         df.to_sql(name='price', con=self.engine, if_exists='append', index=False)
 

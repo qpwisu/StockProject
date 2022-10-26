@@ -89,14 +89,24 @@ class GetStockPrice():
         # 날짜 리스트를 받아서 각각의 쓰레드가 전역 df에 결과값들을 저장
         def get_stock(tickers):
             tmp = pd.DataFrame(columns=['티커', '시가', '고가', '저가', '종가', '거래량', '날짜', '회사명'])
-
-            for ticker in tqdm(tickers):
-                ddf = stock.get_market_ohlcv_by_date(start_day, end_day, ticker, adjusted=True).reset_index()
-                ddf["티커"] = ticker
-                ddf["날짜"] = ddf["날짜"].dt.strftime("%Y%m%d")
-                name = stock.get_market_ticker_name(ticker)
-                ddf["회사명"] = name
-                tmp = pd.concat([tmp, ddf])
+            #tqdm 진행표를 쓰레드 한개만 보기위해서 쓰레드 이름으로 구별
+            threadName = threading.currentThread().getName()
+            if threadName== "ThreadPoolExecutor-0_0":
+                for ticker in tqdm(tickers):
+                    ddf = stock.get_market_ohlcv_by_date(start_day, end_day, ticker, adjusted=True).reset_index()
+                    ddf["티커"] = ticker
+                    ddf["날짜"] = ddf["날짜"].dt.strftime("%Y%m%d")
+                    name = stock.get_market_ticker_name(ticker)
+                    ddf["회사명"] = name
+                    tmp = pd.concat([tmp, ddf])
+            else:
+                for ticker in tickers:
+                    ddf = stock.get_market_ohlcv_by_date(start_day, end_day, ticker, adjusted=True).reset_index()
+                    ddf["티커"] = ticker
+                    ddf["날짜"] = ddf["날짜"].dt.strftime("%Y%m%d")
+                    name = stock.get_market_ticker_name(ticker)
+                    ddf["회사명"] = name
+                    tmp = pd.concat([tmp, ddf])
             global df
             # df라는 전역변수에 쓰레드들이 동시 접근하여 누락되는 값이 생김 공유 자원에 lock을 걸어서 한번에 한쓰레드만 사용가능하게 끔함
             # lock = threading.Lock()
@@ -115,15 +125,12 @@ class GetStockPrice():
         #     num_thread = len(days)
 
         with futures.ThreadPoolExecutor() as executor:
-            print(tickers)
             sub_routine = list_chunk(tickers,num_thread)
             results = executor.map(get_stock, sub_routine)
-        #티커를 이용해서 회사명 열 추가 멀티 쓰레드 사용
-
-
+        #액면분할시 일정 기간동안 시가,고가,종가가 0으로 나온다 이를 종가로 통일
         print("멀티쓰레드 getstockprice time :", time.time() - start)  # 현재시각 - 시작시간 =드실행 시간
         self.save_price_csv(df)
-        return df
+        # return df
     #기존에 구한 날짜 +1 ~ 오늘 -1 날짜 사이에 가격을 구함
     def update_stock_price(self):
         pre_df = pd.read_csv("csvFile/stockPrice.csv")
@@ -142,6 +149,7 @@ class GetStockPrice():
         self.save_price_csv(df)
         return df
     def save_price_csv(self,df):
+
         #회사명, day 기준 오름차순 sort
         df.sort_values(["회사명", "날짜"], inplace=True)
         #중복값 제거
@@ -150,8 +158,17 @@ class GetStockPrice():
 
     def read_stock_price(self):
         df = pd.read_csv("csvFile/StockPrice.csv")
+        df = self.delZero(df)
         return df
 
     def read_append_stock_price(self):
         df = pd.read_csv("csvFile/appendStockPrice.csv")
+        df = self.delZero(df)
+        return df
+
+    def delZero(self,df):
+        # 시,고,저가 0인 종목들 종가로 통일 ex) 액면분할 기간
+        df.loc[df["시가"] == 0, "시가"] = df["종가"]
+        df.loc[df["고가"] == 0, "고가"] = df["종가"]
+        df.loc[df["저가"] == 0, "저가"] = df["종가"]
         return df
