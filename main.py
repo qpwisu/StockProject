@@ -20,5 +20,6 @@ def update():
     #기존 table에 새로 추가된 주가 추가
     um.update_mysql_upload_stock_price(df)
 
-first("20180101", "20220501")
+# first("20180101", "20220501")
 update()
+
