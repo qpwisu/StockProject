@@ -1,14 +1,20 @@
 from get_stock_price import *
 import pandas as pd
-import pykrx
+from concurrent import futures
+from tqdm import tqdm
 test = GetStockPrice()
-# ddf2 = pd.read_csv("csvFile/stockPrice.csv")
-# ddf = stock.get_market_ohlcv_by_date("20180109", "20220101", "032790", adjusted=True).reset_index()
-# ddf = ddf.astype(object)
-# ddf.loc[ddf["시가"] ==0, "시가"] = ddf["종가"]
-# print(ddf[ddf["open"]==0])
-# print(ddf.info)
-# print(ddf2[ddf2["시가"]==0])
-# print(df.duplicated(keep='first').sum())
-df = test.read_stock_price()
-print(df[df["회사명"]=="BNGT"])
+
+df = pd.read_csv("csvFile/stock.csv",index_col=0).sort_index().iloc[0:100,:]
+print(df)
+df= df.fillna(0)
+cor = df.corr(method='pearson').round(3)
+corr_dic = cor.to_dict("series")
+corr_df= pd.DataFrame(columns=["종목명","비교종목명","상관계수"])
+for comp in tqdm(corr_dic.keys()):
+    tmp_df = corr_dic[comp].to_frame().reset_index()
+    tmp_df["종목명"] = comp
+    tmp_df.columns = ["비교종목명", "상관계수", "종목명"]
+    tmp_df = tmp_df[["종목명", "비교종목명", "상관계수"]]
+    corr_df= pd.concat([corr_df,tmp_df])
+print(corr_df)
+# c=cor.pivot(index="날짜",columns="회사명",values="종가")

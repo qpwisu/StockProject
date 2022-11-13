@@ -3,8 +3,7 @@ from datetime import datetime, timedelta
 from concurrent import futures
 from pykrx import stock
 import pandas as pd
-import time
-
+from time import time
 from tqdm import tqdm
 
 
@@ -152,6 +151,9 @@ class GetStockPrice():
 
         #회사명, day 기준 오름차순 sort
         df.sort_values(["회사명", "날짜"], inplace=True)
+        #원텍이라는 종목의 티커가 2개있음 하나는 상장 폐지 된거
+        if 216280 in (df["티커"].values):
+            df.loc[df["티커"] == 216280, "회사명"] = "원텍konex"
         #중복값 제거
         df.drop_duplicates(inplace=True)
         df.to_csv("csvFile/stockPrice.csv", mode='w',index=False)
@@ -172,3 +174,4 @@ class GetStockPrice():
         df.loc[df["고가"] == 0, "고가"] = df["종가"]
         df.loc[df["저가"] == 0, "저가"] = df["종가"]
         return df
+

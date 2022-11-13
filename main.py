@@ -1,9 +1,10 @@
 from get_stock_price import *
+from corr_stock import *
 from upload_mysql import *
 import pandas as pd
 gsp = GetStockPrice()
 um = UploadMysql()
-
+cs = corr()
 def first(start_day,end_day): #"20220101", "20221010"
     #주가 csv파일로 저장
     gsp.multiThread_get_stock_price(start_day,end_day)
@@ -20,6 +21,14 @@ def update():
     #기존 table에 새로 추가된 주가 추가
     um.update_mysql_upload_stock_price(df)
 
-first("20180101", "20220501")
-update()
+def upload_corr():
+    print("start upload_corr : ",time())
+    df= gsp.read_stock_price()
+    #corr df 구하기
+    corr_df = cs.get_corr(df)
+    #mysql 업로드
+    um.mysql_upload_corr(corr_df)
+
+# first("20180101", "20220501")
+upload_corr()
 
